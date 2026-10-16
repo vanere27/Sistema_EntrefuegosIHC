@@ -5,6 +5,8 @@ interface User {
   id: number;
   name: string;
   role: string;
+  sessionToken: string;
+  startedAt?: string;
 }
 
 interface UserStore {
@@ -14,8 +16,18 @@ interface UserStore {
 }
 
 // Creamos la "memoria" global
-export const useUserStore = create<UserStore>((set) => ({
+export const useUserStore = create<UserStore>((set, get) => ({
   user: null,
   login: (userData) => set({ user: userData }),
-  logout: () => set({ user: null }),
+  logout: () => {
+    const sessionToken = get().user?.sessionToken;
+    if (sessionToken && process.env.NEXT_PUBLIC_API_URL) {
+      void fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/session`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        keepalive: true,
+      }).catch(() => undefined);
+    }
+    set({ user: null });
+  },
 }));

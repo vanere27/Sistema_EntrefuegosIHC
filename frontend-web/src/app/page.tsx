@@ -39,6 +39,8 @@ export default function LoginScreen() {
         // --- LÓGICA DE REDIRECCIÓN POR ROL (IHC) ---
         if (data.usuario.role === 'ADMIN') {
           router.push('/admin/comandas');
+        } else if (data.usuario.role === 'CAJERO') {
+          router.push('/admin/comandas');
         } else if (data.usuario.role === 'COCINA') {
           router.push('/cocina'); 
         } else {
@@ -66,9 +68,32 @@ export default function LoginScreen() {
 
   const handleDelete = () => { if (!cargando) setPin(pin.slice(0, -1)); };
 
+  useEffect(() => {
+    const handleKeyboardInput = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select, [contenteditable='true']"))) return;
+
+      if (/^\d$/.test(event.key)) {
+        event.preventDefault();
+        handlePress(event.key);
+      } else if (event.key === "Backspace") {
+        event.preventDefault();
+        handleDelete();
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        if (pin.length === 4 && !cargando) void validarPin(pin);
+      } else if (event.key === "Escape" && !cargando) {
+        setPin("");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyboardInput);
+    return () => window.removeEventListener("keydown", handleKeyboardInput);
+  });
+
   return (
     // AQUÍ ESTÁ LA MAGIA 1: bg-neutral-50 para modo claro, dark:bg-neutral-950 para oscuro
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-white font-sans flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-500">
+    <div className="min-h-[calc(100dvh-3.5rem)] bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-white font-sans flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-500">
              
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(249,115,22,0.15)_0%,_transparent_75%)] pointer-events-none" />
              

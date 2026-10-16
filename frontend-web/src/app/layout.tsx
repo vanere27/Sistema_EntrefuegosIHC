@@ -7,8 +7,12 @@ import "./globals.css";
 import { Toaster } from "sonner";
 // Importamos el proveedor creado en el Paso 3
 import { ThemeProvider } from "@/components/ThemeProvider"; 
-// Importamos el botón creado en el Paso 4
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationSoundUnlock } from "@/components/NotificationSound";
+import { SessionPresence } from "@/components/SessionPresence";
+import { OrderDraftPersistence } from "@/components/OrderDraftPersistence";
+import { SystemUtilities } from "@/components/SystemUtilities";
+import { GlobalNavigation } from "@/components/GlobalNavigation";
+import { SessionLogout } from "@/components/SessionLogout";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,11 +33,16 @@ export default function RootLayout({
         
         {/* Envolvemos a los hijos y al Toaster con el ThemeProvider */}
         <ThemeProvider>
+          <NotificationSoundUnlock />
+          <SessionPresence />
+          <OrderDraftPersistence />
+          <div role="toolbar" aria-label="Herramientas del sistema, accesibilidad y tema" className="sticky top-0 z-50 flex h-14 items-center justify-end gap-2 border-b border-neutral-200 bg-neutral-100/95 px-4 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95">
+            <GlobalNavigation />
+            <SystemUtilities />
+            <SessionLogout />
+          </div>
           {children}
           <Toaster richColors position="top-center" />
-          
-          {/* Inyectamos el botón flotante para que esté en todas las vistas */}
-          <ThemeToggle />
         </ThemeProvider>
         
       </body>

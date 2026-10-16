@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import { io } from "socket.io-client";
 import { toast } from "sonner";
-import { LogOut, User as UserIcon, Lock } from "lucide-react";
+import { User as UserIcon, Lock } from "lucide-react";
+import { playWaiterReadyBell } from "@/components/NotificationSound";
+import { UserSessionStatus } from "@/components/UserSessionStatus";
 
 // Tipado basado en tu esquema Prisma
 interface Table {
@@ -13,12 +15,12 @@ interface Table {
   number: number;
   capacity: number;
   status: string;
+  activeOrder: { id: number; status: string; user: { id: number; name: string } } | null;
 }
 
 export default function MesasPage() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
-  const logout = useUserStore((state) => state.logout);
 
   const [mesas, setMesas] = useState<Table[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -49,14 +51,27 @@ export default function MesasPage() {
     
     socket.on("estado_mesa_actualizado", (data: { id: number, status: string }) => {
       setMesas((mesasActuales) => 
-        mesasActuales.map((m) => m.id === data.id ? { ...m, status: data.status } : m)
+        mesasActuales.map((m) => m.id === data.id ? { ...m, status: data.status, activeOrder: data.status === 'libre' ? null : m.activeOrder } : m)
       );
+    });
+
+    socket.on("nueva_orden_creada", (order) => {
+      setMesas(current => current.map(table => table.id === order.tableId
+        ? { ...table, status: 'ocupada', activeOrder: { id: order.id, status: order.status, user: order.user } }
+        : table));
+    });
+
+    socket.on("orden_actualizada_items", (order) => {
+      setMesas(current => current.map(table => table.id === order.tableId
+        ? { ...table, activeOrder: { id: order.id, status: order.status, user: order.user } }
+        : table));
     });
 
     // --- ESCUCHADOR IHC: NOTIFICACIÓN DE COCINA (KDS) ---
     socket.on("item_cook_status_updated", (data) => {
       // Validamos que el plato esté LISTO y que el mesero actual sea el dueño de ese pedido
       if (data.cookStatus === 'LISTO' && data.order.userId === user?.id) {
+        playWaiterReadyBell();
         toast.success(
           `¡ATENCIÓN! ${data.product.name} de la MESA ${data.order.table.number} está LISTO en cocina.`, 
           { duration: 8000 } 
@@ -99,14 +114,9 @@ export default function MesasPage() {
     router.push(`/mesas/${mesa.id}`);
   };
 
-  const handleCerrarSesion = () => {
-    logout();
-    router.push("/");
-  };
-
   return (
     // AQUÍ ESTÁ LA MAGIA 1: Fondo claro adaptativo en el contenedor principal
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-white font-light p-6 transition-colors duration-500">
+    <div className="min-h-[calc(100dvh-3.5rem)] bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-white font-light p-6 transition-colors duration-500">
       
       {/* Barra superior de identidad */}
       <div className="flex justify-between items-center mb-10 border-b border-neutral-200 dark:border-neutral-800 pb-4 transition-colors">
@@ -118,14 +128,8 @@ export default function MesasPage() {
             <UserIcon size={14} className="text-orange-500" />
             Mesero: <span className="font-medium text-neutral-700 dark:text-neutral-300">{user?.name || "Desconocido"}</span>
           </p>
+          <div className="ml-5 mt-1"><UserSessionStatus /></div>
         </div>
-        <button 
-          onClick={handleCerrarSesion}
-          // MAGIA 2: Botón de salir adaptable
-          className="p-3 bg-white dark:bg-neutral-900 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors border border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-500 shadow-sm dark:shadow-none"
-        >
-          <LogOut size={20} />
-        </button>
       </div>
 
       {/* Renderizado del Mapa de Mesas */}
@@ -160,6 +164,11 @@ export default function MesasPage() {
                 <span className="text-[10px] tracking-[0.3em] uppercase text-neutral-400 dark:text-neutral-500 font-bold transition-colors">
                   {estaOcupada ? "En Servicio" : "Disponible"}
                 </span>
+                {estaOcupada && mesa.activeOrder?.user?.name && (
+                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-800 dark:bg-orange-500/10 dark:text-orange-300">
+                    <UserIcon size={13} /> {mesa.activeOrder.user.name}
+                  </span>
+                )}
               </button>
             );
           })}

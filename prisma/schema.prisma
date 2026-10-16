@@ -16,6 +16,8 @@ model User {
   role      String   @default("MESERO") // Puede ser MESERO o ADMIN
   pin       String   @unique // Un PIN corto para que el mesero entre rápido a la app
   orders    Order[]
+  draftSnapshots UserDraftSnapshot[]
+  sessionLogs SessionLog[]
 }
 
 // Tabla para los Platos y Bebidas (El Menú)
@@ -51,12 +53,14 @@ model Order {
   table     Table       @relation(fields: [tableId], references: [id])
   
   items     OrderItem[]
+  payments  Payment[]
 }
 
 // Tabla para los detalles de cada plato dentro de un pedido
 model OrderItem {
   id        Int      @id @default(autoincrement())
   quantity  Int
+  paidQuantity Int   @default(0)
   notes     String?  // Ej: "Sin cebolla", "Término medio"
 
   // ---> NUEVO CAMPO IHC: ESTADO EN COCINA <---
@@ -66,6 +70,40 @@ model OrderItem {
   order     Order    @relation(fields: [orderId], references: [id])
   productId Int
   product   Product  @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  orderId       Int
+  subtotal      Float
+  serviceAmount Float   @default(0)
+  total         Float
+  items         Json
+  createdAt     DateTime @default(now())
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+}
+
+model UserDraftSnapshot {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  items     Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model SessionLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  loginAt   DateTime @default(now())
+  logoutAt  DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loginAt])
+  @@index([loginAt, logoutAt])
 }
 
 // --- NUEVA TABLA: LISTA DE ESPERA (IHC) ---
